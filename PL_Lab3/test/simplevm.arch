@@ -1,0 +1,327 @@
+architecture SimpleVM {
+
+    registers:
+        storage R0[32];
+        storage R1[32];
+        storage R2[32];
+        storage R3[32];
+        storage R4[32];
+        storage R5[32];
+        storage R6[32];
+        storage R7[32];
+        storage SP_reg[32];
+        storage FP_reg[32];
+        storage PC_reg[32];
+        storage FL_reg[32];
+        storage IO_reg[32];
+
+        view r0 = R0;
+        view r1 = R1;
+        view r2 = R2;
+        view r3 = R3;
+        view r4 = R4;
+        view r5 = R5;
+        view r6 = R6;
+        view r7 = R7;
+        view sp = SP_reg;
+        view fp = FP_reg;
+        view pc = PC_reg;
+        view flags = FL_reg;
+        view zf = FL_reg[0];
+        view sf = FL_reg[1];
+        view io = IO_reg;
+
+    memory:
+        range ram [0x0000..0xFFFF] {
+            cell = 8;
+            endianess = little-endian;
+            granularity = 0;
+        }
+
+    instructions:
+        encode reg field = register {
+            r0 = 0000, r1 = 0001, r2 = 0010, r3 = 0011,
+            r4 = 0100, r5 = 0101, r6 = 0110, r7 = 0111,
+            sp = 1000, fp = 1001
+        };
+
+        encode imm32 field = immediate[32] data;
+        encode addr16 field = immediate[16] offset;
+
+        encode cond field = cases {
+            always = 0000,
+            eq     = 0001,   /* ZF = 1 */
+            ne     = 0010,   /* ZF = 0 */
+            lt     = 0011,   /* SF = 1 */
+            ge     = 0100,   /* SF = 0 */
+            le     = 0101,   /* ZF = 1 or SF = 1 */
+            gt     = 0110    /* ZF = 0 and SF = 0 */
+        };
+
+    instructions:
+        /* ldc reg, imm32 — загрузка константы */
+        instruction ldc = { 0000 0001, reg as dst, imm32 as value } {
+            dst = value;
+        };
+
+        /* mov dst, src — копирование регистра */
+        instruction mov = { 0000 0010, reg as dst, reg as src } {
+            dst = src;
+        };
+
+        /* ld reg, [reg + offset] — загрузка из памяти */
+        instruction ld_reg_off = { 0000 0011, reg as dst, reg as base, imm32 as off } {
+            dst = ram[base + off];
+        };
+
+        /* ld reg, [reg] — загрузка из памяти по регистру */
+        instruction ld_reg = { 0000 0100, reg as dst, reg as addr } {
+            dst = ram[addr];
+        };
+
+        /* st [reg + offset], reg — запись в память */
+        instruction st_reg_off = { 0000 0101, reg as base, imm32 as off, reg as src } {
+            ram[base + off] = src;
+        };
+
+        /* st [reg], reg — запись в память по регистру */
+        instruction st_reg = { 0000 0110, reg as addr, reg as src } {
+            ram[addr] = src;
+        };
+
+        /* push reg — положить на стек */
+        instruction push = { 0000 0111, reg as src } {
+            sp = sp - 4;
+            ram[sp] = src;
+        };
+
+        /* pop reg — снять со стека */
+        instruction pop = { 0000 1000, reg as dst } {
+            dst = ram[sp];
+            sp = sp + 4;
+        };
+
+    instructions:
+        /* add dst, src */
+        instruction add_rr = { 0001 0000, reg as dst, reg as src } {
+            dst = dst + src;
+        };
+
+        /* add dst, imm32 */
+        instruction add_ri = { 0001 0001, reg as dst, imm32 as val } {
+            dst = dst + val;
+        };
+
+        /* sub dst, src */
+        instruction sub_rr = { 0001 0010, reg as dst, reg as src } {
+            dst = dst - src;
+        };
+
+        /* sub dst, imm32 */
+        instruction sub_ri = { 0001 0011, reg as dst, imm32 as val } {
+            dst = dst - val;
+        };
+
+        /* mul dst, src */
+        instruction mul_rr = { 0001 0100, reg as dst, reg as src } {
+            dst = dst * src;
+        };
+
+        /* mul dst, imm32 */
+        instruction mul_ri = { 0001 0101, reg as dst, imm32 as val } {
+            dst = dst * val;
+        };
+
+        /* div dst, src */
+        instruction div_rr = { 0001 0110, reg as dst, reg as src } {
+            dst = dst / src;
+        };
+
+        /* mod dst, src */
+        instruction mod_rr = { 0001 0111, reg as dst, reg as src } {
+            dst = dst % src;
+        };
+
+        /* neg dst — арифметическое отрицание */
+        instruction neg = { 0001 1000, reg as dst } {
+            dst = 0 - dst;
+        };
+
+        /* inc dst */
+        instruction inc = { 0001 1001, reg as dst } {
+            dst = dst + 1;
+        };
+
+        /* dec dst */
+        instruction dec = { 0001 1010, reg as dst } {
+            dst = dst - 1;
+        };
+
+        /* and dst, src */
+        instruction and_rr = { 0010 0000, reg as dst, reg as src } {
+            dst = dst & src;
+        };
+
+        /* or dst, src */
+        instruction or_rr = { 0010 0001, reg as dst, reg as src } {
+            dst = dst | src;
+        };
+
+        /* xor dst, src */
+        instruction xor_rr = { 0010 0010, reg as dst, reg as src } {
+            dst = dst ^ src;
+        };
+
+        /* not dst */
+        instruction not_insn = { 0010 0011, reg as dst } {
+            dst = ~dst;
+        };
+
+        /* shl dst, src */
+        instruction shl_rr = { 0010 0100, reg as dst, reg as src } {
+            dst = dst << src;
+        };
+
+        /* shr dst, src */
+        instruction shr_rr = { 0010 0101, reg as dst, reg as src } {
+            dst = dst >> src;
+        };
+
+        /* cmp dst, src — устанавливает флаги */
+        instruction cmp_rr = { 0010 0110, reg as dst, reg as src } {
+            let diff = dst - src;
+            zf = (diff == 0);
+            sf = (diff < 0);
+        };
+
+        /* cmp dst, imm32 */
+        instruction cmp_ri = { 0010 0111, reg as dst, imm32 as val } {
+            let diff = dst - val;
+            zf = (diff == 0);
+            sf = (diff < 0);
+        };
+
+    instructions:
+        /* jmp addr — безусловный переход */
+        instruction jmp = { 0011 0000, addr16 as target } {
+            pc = target;
+        };
+
+        /* jCC addr — условные переходы */
+        instruction je  = { 0011 0001, addr16 as target } {
+            if zf then pc = target;
+        };
+
+        instruction jne = { 0011 0010, addr16 as target } {
+            if !zf then pc = target;
+        };
+
+        instruction jl  = { 0011 0011, addr16 as target } {
+            if sf then pc = target;
+        };
+
+        instruction jge = { 0011 0100, addr16 as target } {
+            if !sf then pc = target;
+        };
+
+        instruction jle = { 0011 0101, addr16 as target } {
+            if zf then pc = target;
+            if sf then pc = target;
+        };
+
+        instruction jg  = { 0011 0110, addr16 as target } {
+            if !zf then
+                if !sf then pc = target;
+        };
+
+        /* call addr — вызов подпрограммы */
+        instruction call = { 0011 0111, addr16 as target } {
+            sp = sp - 4;
+            ram[sp] = pc;
+            pc = target;
+        };
+
+        /* ret — возврат из подпрограммы */
+        instruction ret = { 0011 1000 } {
+            pc = ram[sp];
+            sp = sp + 4;
+        };
+
+    instructions:
+        /* lio imm32 — загрузка номера порта в скрытый регистр io */
+        instruction lio = { 0100 0000, imm32 as port } {
+            io = port;
+        };
+
+        /* in reg — чтение из порта io в регистр */
+        instruction in_insn = { 0100 0001, reg as dst } {
+            dst = io;  /* чтение из порта, определяемого io */
+        };
+
+        /* out reg — запись регистра в порт io */
+        instruction out_insn = { 0100 0010, reg as src } {
+            io = src;  /* запись в порт, определяемый io */
+        };
+
+    instructions:
+        /* hlt — остановка */
+        instruction hlt = { 1111 1111 } {
+            /* halt execution */
+        };
+
+    mnemonics:
+        format plain1 is "{1}";
+        format plain2 is "{1}, {2}";
+        format mem_reg is "{1}, [{2}]";
+        format mem_reg_off is "{1}, [{2} + {3}]";
+        format st_mem_reg is "[{1}], {2}";
+        format st_mem_reg_off is "[{1} + {2}], {3}";
+
+        mnemonic ldc  for ldc          (dst, value) plain2;
+        mnemonic mov  for mov          (dst, src)   plain2;
+
+        mnemonic ld   for ld_reg_off   (dst, base, off) mem_reg_off,
+                      for ld_reg       (dst, addr)      mem_reg;
+
+        mnemonic st   for st_reg_off   (base, off, src) st_mem_reg_off,
+                      for st_reg       (addr, src)      st_mem_reg;
+
+        mnemonic push for push         (src) plain1;
+        mnemonic pop  for pop          (dst) plain1;
+
+        mnemonic add  for add_rr       (dst, src) plain2,
+                      for add_ri       (dst, val) plain2;
+        mnemonic sub  for sub_rr       (dst, src) plain2,
+                      for sub_ri       (dst, val) plain2;
+        mnemonic mul  for mul_rr       (dst, src) plain2,
+                      for mul_ri       (dst, val) plain2;
+        mnemonic div  for div_rr       (dst, src) plain2;
+        mnemonic mod  for mod_rr       (dst, src) plain2;
+        mnemonic neg  for neg          (dst) plain1;
+        mnemonic inc  for inc          (dst) plain1;
+        mnemonic dec  for dec          (dst) plain1;
+
+        mnemonic and  for and_rr       (dst, src) plain2;
+        mnemonic or   for or_rr        (dst, src) plain2;
+        mnemonic xor  for xor_rr       (dst, src) plain2;
+        mnemonic not  for not_insn     (dst) plain1;
+        mnemonic shl  for shl_rr       (dst, src) plain2;
+        mnemonic shr  for shr_rr       (dst, src) plain2;
+        mnemonic cmp  for cmp_rr       (dst, src) plain2,
+                      for cmp_ri       (dst, val) plain2;
+
+        mnemonic jmp  for jmp          (target) plain1;
+        mnemonic je   for je           (target) plain1;
+        mnemonic jne  for jne          (target) plain1;
+        mnemonic jl   for jl           (target) plain1;
+        mnemonic jge  for jge          (target) plain1;
+        mnemonic jle  for jle          (target) plain1;
+        mnemonic jg   for jg           (target) plain1;
+        mnemonic call for call         (target) plain1;
+        mnemonic ret  for ret          ();
+
+        mnemonic lio  for lio          (port) plain1;
+        mnemonic in   for in_insn      (dst)  plain1;
+        mnemonic out  for out_insn     (src)  plain1;
+        mnemonic hlt  for hlt          ();
+}

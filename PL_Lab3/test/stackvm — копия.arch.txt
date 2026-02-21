@@ -1,0 +1,402 @@
+architecture StackVM {
+
+registers:
+    storage IP_reg[32];
+    storage SP_reg[32];
+    storage FP_reg[32];
+    storage IO_reg[32];
+    storage STDIN_reg[72];
+    storage STDOUT_reg[72];
+
+    view ip = IP_reg;
+    view sp = SP_reg;
+    view fp = FP_reg;
+    view io = IO_reg;
+    view stdinreg  = STDIN_reg;
+    view stdoutreg = STDOUT_reg;
+
+memory:
+    range _code [0x00000000..0x0000FFFF] {
+        cell = 8;
+        endianess = little-endian;
+        granularity = 0;
+    }
+    range _constants [0x00010000..0x0001FFFF] {
+        cell = 8;
+        endianess = little-endian;
+        granularity = 0;
+    }
+    range _data [0x00020000..0x0002FFFF] {
+        cell = 8;
+        endianess = little-endian;
+        granularity = 0;
+    }
+    range _stack [0x00030000..0x0003FFFF] {
+        cell = 8;
+        endianess = little-endian;
+        granularity = 0;
+    }
+
+instructions:
+
+    encode imm32 field = immediate[32] data;
+    encode addr32 field = immediate[32] offset;
+
+    /* === Группа 1: Загрузка констант и перемещение данных === */
+
+    instruction push_int_op = { 00000001, imm32 as value } {
+        sp = sp + 9;
+        _stack[sp - 8] = 0x01;
+        _stack[sp - 7] = value;
+    };
+
+    instruction push_bool_op = { 00000010, imm32 as value } {
+        sp = sp + 9;
+        _stack[sp - 8] = 0x02;
+        _stack[sp - 7] = value;
+    };
+
+    instruction push_char_op = { 00000011, imm32 as value } {
+        sp = sp + 9;
+        _stack[sp - 8] = 0x03;
+        _stack[sp - 7] = value;
+    };
+
+    instruction push_const_op = { 00000100, imm32 as idx } {
+        sp = sp + 9;
+    };
+
+    instruction push_none_op = { 00000101 } {
+        sp = sp + 9;
+        _stack[sp - 8] = 0x00;
+        _stack[sp - 7] = 0;
+    };
+
+    instruction load_local_op = { 00010000, imm32 as slot } {
+        sp = sp + 9;
+    };
+
+    instruction store_local_op = { 00010001, imm32 as slot } {
+        sp = sp - 9;
+    };
+
+    instruction load_arg_op = { 00010010, imm32 as slot } {
+        sp = sp + 9;
+    };
+
+    instruction store_arg_op = { 00010011, imm32 as slot } {
+        sp = sp - 9;
+    };
+
+    instruction dup_op = { 00010100 } {
+        sp = sp + 9;
+    };
+
+    instruction pop_op = { 00010101 } {
+        sp = sp - 9;
+    };
+
+    /* === Группа 2: Арифметика и логика === */
+
+    instruction add_op = { 00100000 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a + b;
+    };
+
+    instruction sub_op = { 00100001 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a - b;
+    };
+
+    instruction mul_op = { 00100010 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a * b;
+    };
+
+    instruction div_op = { 00100011 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a / b;
+    };
+
+    instruction mod_op = { 00100100 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a % b;
+    };
+
+    instruction neg_op = { 00100101 } {
+        _stack[sp - 7] = 0 - _stack[sp - 7];
+    };
+
+    instruction inc_op = { 00100110 } {
+        _stack[sp - 7] = _stack[sp - 7] + 1;
+    };
+
+    instruction dec_instr_op = { 00100111 } {
+        _stack[sp - 7] = _stack[sp - 7] - 1;
+    };
+
+    instruction bit_and_op = { 00101000 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a & b;
+    };
+
+    instruction bit_or_op = { 00101001 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a | b;
+    };
+
+    instruction bit_xor_op = { 00101010 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a ^ b;
+    };
+
+    instruction bit_shl_op = { 00101011 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a << b;
+    };
+
+    instruction bit_shr_op = { 00101100 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 7] = a >> b;
+    };
+
+    instruction bit_not_op = { 00101101 } {
+        _stack[sp - 7] = ~_stack[sp - 7];
+    };
+
+    instruction log_and_op = { 00101110 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a != 0 then {
+            if b != 0 then { _stack[sp - 7] = 1; }
+            else { _stack[sp - 7] = 0; }
+        } else { _stack[sp - 7] = 0; }
+    };
+
+    instruction log_or_op = { 00101111 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a != 0 then { _stack[sp - 7] = 1; }
+        else {
+            if b != 0 then { _stack[sp - 7] = 1; }
+            else { _stack[sp - 7] = 0; }
+        }
+    };
+
+    instruction log_not_op = { 00110000 } {
+        _stack[sp - 8] = 0x02;
+        if _stack[sp - 7] == 0 then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    instruction cmp_eq_op = { 00110001 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a == b then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    instruction cmp_ne_op = { 00110010 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a != b then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    instruction cmp_lt_op = { 00110011 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a < b then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    instruction cmp_gt_op = { 00110100 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a > b then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    instruction cmp_le_op = { 00110101 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a <= b then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    instruction cmp_ge_op = { 00110110 } {
+        let b = _stack[sp - 9];
+        let a = _stack[sp - 18];
+        sp = sp - 9;
+        _stack[sp - 8] = 0x02;
+        if a >= b then { _stack[sp - 7] = 1; }
+        else { _stack[sp - 7] = 0; }
+    };
+
+    /* === Группа 3: Управление === */
+
+    instruction jmp_op = { 01000000, addr32 as target } {
+        ip = target;
+    };
+
+    instruction jnz_op = { 01000001, addr32 as target } {
+        let val = _stack[sp - 7];
+        sp = sp - 9;
+        if val != 0 then { ip = target; }
+    };
+
+    instruction jz_op = { 01000010, addr32 as target } {
+        let val = _stack[sp - 7];
+        sp = sp - 9;
+        if val == 0 then { ip = target; }
+    };
+
+    instruction call_op = { 01000011, addr32 as target } {
+        sp = sp + 4;
+        _stack[sp - 4] = ip;
+        sp = sp + 4;
+        _stack[sp - 4] = fp;
+        fp = sp;
+        ip = target;
+    };
+
+    instruction ret_op = { 01000100 } {
+        sp = fp;
+        fp = _stack[sp - 4];
+        sp = sp - 4;
+        ip = _stack[sp - 4];
+        sp = sp - 4;
+    };
+
+    instruction enter_op = { 01000101, imm32 as count } {
+        sp = sp + count * 9;
+    };
+
+    instruction hlt_op = { 01001111 } {
+    };
+
+    instruction call_indirect_op = { 01000110, imm32 as argcount } {
+        let target = _stack[sp - 7];
+        sp = sp - 9;
+        sp = sp + 4;
+        _stack[sp - 4] = ip;
+        sp = sp + 4;
+        _stack[sp - 4] = fp;
+        fp = sp;
+        ip = target;
+    };
+
+    /* === Группа 4: I/O === */
+
+    instruction lio_op = { 01010000, imm32 as port } {
+        io = port;
+    };
+
+    instruction io_read_op = { 01010001 } {
+        sp = sp + 9;
+        if io == 0 then {
+            _stack[sp - 8] = stdinreg;
+        }
+    };
+
+    instruction io_write_op = { 01010010 } {
+        if io == 1 then {
+            stdoutreg = _stack[sp - 8];
+        }
+        sp = sp - 9;
+    };
+
+    /* === Массивы === */
+    instruction arr_load_op = { 01100000 } { sp = sp - 9; };
+    instruction arr_store_op = { 01100001 } { sp = sp - 27; };
+    instruction arr_slice_op = { 01100010 } { sp = sp - 9; };
+    instruction make_range_op = { 01100011 } { sp = sp - 9; };
+
+mnemonics:
+    format plain1 is "{1}";
+
+    mnemonic push_int  for push_int_op  (value) plain1;
+    mnemonic push_bool for push_bool_op (value) plain1;
+    mnemonic push_char for push_char_op (value) plain1;
+    mnemonic push_const for push_const_op (idx) plain1;
+    mnemonic push_none for push_none_op ();
+    mnemonic load_local  for load_local_op  (slot) plain1;
+    mnemonic store_local for store_local_op (slot) plain1;
+    mnemonic load_arg    for load_arg_op    (slot) plain1;
+    mnemonic store_arg   for store_arg_op   (slot) plain1;
+    mnemonic dup  for dup_op  ();
+    mnemonic pop  for pop_op  ();
+    mnemonic add  for add_op  ();
+    mnemonic sub  for sub_op  ();
+    mnemonic mul  for mul_op  ();
+    mnemonic div  for div_op  ();
+    mnemonic mod  for mod_op  ();
+    mnemonic neg  for neg_op  ();
+    mnemonic inc  for inc_op  ();
+    mnemonic dec_op for dec_instr_op ();
+    mnemonic bit_and for bit_and_op ();
+    mnemonic bit_or  for bit_or_op  ();
+    mnemonic bit_xor for bit_xor_op ();
+    mnemonic bit_shl for bit_shl_op ();
+    mnemonic bit_shr for bit_shr_op ();
+    mnemonic bit_not for bit_not_op ();
+    mnemonic log_and for log_and_op ();
+    mnemonic log_or  for log_or_op  ();
+    mnemonic log_not for log_not_op ();
+    mnemonic cmp_eq  for cmp_eq_op  ();
+    mnemonic cmp_ne  for cmp_ne_op  ();
+    mnemonic cmp_lt  for cmp_lt_op  ();
+    mnemonic cmp_gt  for cmp_gt_op  ();
+    mnemonic cmp_le  for cmp_le_op  ();
+    mnemonic cmp_ge  for cmp_ge_op  ();
+    mnemonic jmp   for jmp_op   (target) plain1;
+    mnemonic jnz   for jnz_op   (target) plain1;
+    mnemonic jz    for jz_op    (target) plain1;
+    mnemonic call  for call_op  (target) plain1;
+    mnemonic ret   for ret_op   ();
+    mnemonic enter for enter_op (count)  plain1;
+    mnemonic hlt   for hlt_op   ();
+    mnemonic call_indirect for call_indirect_op (argcount) plain1;
+    mnemonic lio      for lio_op      (port) plain1;
+    mnemonic io_read  for io_read_op  ();
+    mnemonic io_write for io_write_op ();
+    mnemonic arr_load  for arr_load_op  ();
+    mnemonic arr_store for arr_store_op ();
+    mnemonic arr_slice for arr_slice_op ();
+    mnemonic make_range for make_range_op ();
+
+}

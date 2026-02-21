@@ -1,0 +1,30 @@
+digraph "main" {
+  label="main";
+  labelloc=t;
+  node [shape=record, fontname="monospace", fontsize=9];
+  edge [fontname="monospace", fontsize=8];
+
+  bb0 [label="entry (BB0)\lx = 10\ly = 20\lz = add(x, y)\l---\lcond: (z \> 25)\l", style=filled, fillcolor=lightgreen];
+  bb1 [label="exit (BB1)", style=filled, fillcolor=lightyellow];
+  bb2 [label="if.then (BB2)\lz = (z - 5)\l"];
+  bb3 [label="if.merge (BB3)\lf = factorial(5)\li = 0\l"];
+  bb4 [label="if.else (BB4)\lz = (z + 5)\l"];
+  bb5 [label="loop.cond (BB5)---\lcond: (i \< 3)\l"];
+  bb6 [label="loop.body (BB6)---\lcond: (i == 1)\l"];
+  bb7 [label="loop.exit (BB7)\lprint(\"done\")\l"];
+  bb8 [label="if.then (BB8)"];
+  bb9 [label="if.merge (BB9)\li = (i + 1)\l"];
+
+  bb0 -> bb2 [label="true", color=green];
+  bb0 -> bb4 [label="false", color=red];
+  bb2 -> bb3;
+  bb3 -> bb5;
+  bb4 -> bb3;
+  bb5 -> bb6 [label="true", color=green];
+  bb5 -> bb7 [label="false", color=red];
+  bb6 -> bb8 [label="true", color=green];
+  bb6 -> bb9 [label="false", color=red];
+  bb7 -> bb1;
+  bb8 -> bb7;
+  bb9 -> bb5;
+}

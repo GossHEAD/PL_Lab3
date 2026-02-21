@@ -1,0 +1,51 @@
+def in() of int
+end
+
+def out(n of int) 
+end
+
+
+def readInt() of int
+    // x = in()
+end
+
+def writeInt(n of int)
+
+    // out(...)
+end
+
+def add(a of int, b of int) of int
+    result = a + b;
+end
+
+def factorial(n of int) of int
+    result = 1;
+    i = 1;
+    while i <= n
+        result = result * i;
+        i = i + 1;
+    end
+    result;
+end
+
+def main()
+    x = 10;
+    y = 20;
+    z = add(x, y);
+
+    if z > 25 then
+        z = z - 5;
+    else
+        z = z + 5;
+
+    f = factorial(5);
+
+    i = 0;
+    while i < 3
+        if i == 1 then
+            break;
+        i = i + 1;
+    end
+
+    print("done");
+end

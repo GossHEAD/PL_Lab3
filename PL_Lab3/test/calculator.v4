@@ -1,0 +1,56 @@
+def in()
+end
+
+def out(n)
+end
+
+def readInt()
+    in();
+end
+
+def writeInt(n)
+    out(n);
+end
+
+def fn_add(a, b)
+    a + b;
+end
+
+def fn_sub(a, b)
+    a - b;
+end
+
+def fn_mul(a, b)
+    a * b;
+end
+
+def fn_div(a, b)
+    a / b;
+end
+
+def fn_mod(a, b)
+    a % b;
+end
+
+def calc(op, a, b)
+    if op == 43 then
+        fn_add(a, b);
+    else if op == 45 then
+        fn_sub(a, b);
+    else if op == 42 then
+        fn_mul(a, b);
+    else if op == 47 then
+        fn_div(a, b);
+    else if op == 37 then
+        fn_mod(a, b);
+    else
+        0;
+end
+
+def main()
+    op = readInt();
+    a = readInt();
+    b = readInt();
+    result = calc(op, a, b);
+    writeInt(result);
+end
