@@ -131,6 +131,7 @@
     <None Include="example.json" />
     <None Include="example.v4" />
     <None Include="Makefile" />
+    <None Include="stackvm.arch" />
     <None Include="test\calculator.asm" />
     <None Include="test\example.v4" />
     <None Include="test\helpers.clamp.dot" />

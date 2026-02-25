@@ -84,11 +84,10 @@ calc:
     jnz calc__if_then_2
     jmp calc__if_else_4
 calc__if_then_2:
-    load_arg 1 ; a
     load_arg 2 ; b
+    load_arg 1 ; a
     call fn_add ; args=2
-    pop ; discard expression result
-    jmp calc__if_merge_3
+    jmp calc__exit_1 ; implicit return
 calc__if_else_4:
     load_arg 0 ; op
     push_int 45
@@ -98,11 +97,10 @@ calc__if_else_4:
 calc__if_merge_3:
     jmp calc__exit_1
 calc__if_then_5:
-    load_arg 1 ; a
     load_arg 2 ; b
+    load_arg 1 ; a
     call fn_sub ; args=2
-    pop ; discard expression result
-    jmp calc__if_merge_6
+    jmp calc__exit_1 ; implicit return
 calc__if_else_7:
     load_arg 0 ; op
     push_int 42
@@ -112,11 +110,10 @@ calc__if_else_7:
 calc__if_merge_6:
     jmp calc__if_merge_3
 calc__if_then_8:
-    load_arg 1 ; a
     load_arg 2 ; b
+    load_arg 1 ; a
     call fn_mul ; args=2
-    pop ; discard expression result
-    jmp calc__if_merge_9
+    jmp calc__exit_1 ; implicit return
 calc__if_else_10:
     load_arg 0 ; op
     push_int 47
@@ -126,11 +123,10 @@ calc__if_else_10:
 calc__if_merge_9:
     jmp calc__if_merge_6
 calc__if_then_11:
-    load_arg 1 ; a
     load_arg 2 ; b
+    load_arg 1 ; a
     call fn_div ; args=2
-    pop ; discard expression result
-    jmp calc__if_merge_12
+    jmp calc__exit_1 ; implicit return
 calc__if_else_13:
     load_arg 0 ; op
     push_int 37
@@ -140,19 +136,16 @@ calc__if_else_13:
 calc__if_merge_12:
     jmp calc__if_merge_9
 calc__if_then_14:
-    load_arg 1 ; a
     load_arg 2 ; b
+    load_arg 1 ; a
     call fn_mod ; args=2
-    pop ; discard expression result
-    jmp calc__if_merge_15
+    jmp calc__exit_1 ; implicit return
 calc__if_else_16:
     push_int 0
-    pop ; discard expression result
-    jmp calc__if_merge_15
+    jmp calc__exit_1 ; implicit return
 calc__if_merge_15:
     jmp calc__if_merge_12
 calc__exit_1:
-    push_none ; default return value
     ret 3 ; return, clean 3 args
 
 ; === function main (args=0, locals=4) ===
@@ -164,9 +157,9 @@ main:
     store_local 1 ; a
     call readInt ; args=0
     store_local 2 ; b
-    load_local 0 ; op
-    load_local 1 ; a
     load_local 2 ; b
+    load_local 1 ; a
+    load_local 0 ; op
     call calc ; args=3
     store_local 3 ; result
     load_local 3 ; result
@@ -178,30 +171,16 @@ main__exit_1:
 ; [section stack] — managed by VM at runtime
 
 ; --- included external code ---
-; runtime.asm — реализация внешних функций ввода-вывода для StackVM
-;
-; ИСПРАВЛЕНИЕ: после io_read значение находится на стеке.
-; ret N очистит аргументы вызывающего и вернёт значение.
-;
-; Соглашение о вызовах (исправленное):
-;   call func  -> TOS = возвращаемое значение после возврата
-;   ret N      -> VM сохраняет TOS, восстанавливает фрейм,
-;                 очищает N аргументов вызывающего, возвращает TOS
-
-; in() — читает целое число из порта 0, возвращает его
-; Аргументов нет (nargs=0)
 in:
     enter 0
     lio 0
-    io_read         ; TOS = прочитанное значение (тег=0x01, val=число)
-    ret 0           ; возвращаем значение, аргументов 0
+    io_read         
+    ret 0
 
-; out(n) — записывает n в порт 1
-; 1 аргумент: n (nargs=1)
 out:
     enter 0
-    load_arg 0      ; n
+    load_arg 0      
     lio 1
-    io_write        ; записываем n в порт вывода
-    push_none       ; void-функция, возвращаем none
-    ret 1           ; возвращаем none, очищаем 1 аргумент
+    io_write        
+    push_none       
+    ret 1           

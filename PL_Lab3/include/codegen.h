@@ -24,6 +24,9 @@ public:
 
 private:
     void generateFunction(const FunctionInfo& func);
+
+    void generateBlock(const BasicBlock& block, const FunctionInfo& func,
+                       const std::string& exitLabel);
     void generateBlock(const BasicBlock& block, const FunctionInfo& func);
 
     void emitOperation(const Operation* op);
@@ -54,9 +57,11 @@ private:
     FunctionCode* currentFunc_;
     CodeFragment* currentFrag_;
     std::map<std::string, int> localSlots_;
-    std::map<std::string, int> argSlots_;       
+    std::map<std::string, int> argSlots_;
     int nextLocalSlot_;
     int numArgs_;
+
+    std::string exitLabel_;
 };
 
 #endif // CODEGEN_H

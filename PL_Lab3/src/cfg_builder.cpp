@@ -1,4 +1,22 @@
-﻿#include "../include/cfg_builder.h"
+// cfg_builder.cpp — ИСПРАВЛЕНО: поддержка неявного возврата (implicit return)
+//
+// В языке варианта 4 последнее выражение в функции является возвращаемым значением.
+// Пример:
+//   def fn_add(a, b)
+//     a + b;   <- неявный return: возвращает a+b
+//   end
+//
+//   def readInt()
+//     in();    <- возвращает результат вызова in()
+//   end
+//
+// Изменения:
+//   - buildFunctionCFG после построения CFG делает постобработку:
+//     для каждого блока, напрямую ведущего в exit, последняя операция
+//     (если это не OP_ASSIGN и не OP_RETURN) оборачивается в OP_RETURN.
+//   - Это позволяет codegen правильно оставить значение на стеке вместо pop.
+
+#include "../include/cfg_builder.h"
 
 void CFGBuilder::addError(const std::string& msg, SourceLocation loc) {
     errors_.push_back({ msg, currentFile_, loc });
@@ -98,13 +116,11 @@ OperationPtr CFGBuilder::convertExpr(const ASTNode* node) {
     if (node == nullptr) return nullptr;
 
     switch (node->kind) {
-    case ASTNode::EXPR_LITERAL: {
+    case ASTNode::EXPR_LITERAL:
         return std::make_unique<Operation>(Operation::OP_LITERAL, node->value, node->loc);
-    }
 
-    case ASTNode::EXPR_PLACE: {
+    case ASTNode::EXPR_PLACE:
         return std::make_unique<Operation>(Operation::OP_PLACE, node->value, node->loc);
-    }
 
     case ASTNode::EXPR_BINARY: {
         auto op = std::make_unique<Operation>(Operation::OP_BINARY, node->value, node->loc);
@@ -123,12 +139,11 @@ OperationPtr CFGBuilder::convertExpr(const ASTNode* node) {
         return op;
     }
 
-    case ASTNode::EXPR_BRACES: {
+    case ASTNode::EXPR_BRACES:
         if (!node->children.empty()) {
             return convertExpr(node->children[0].get());
         }
         return nullptr;
-    }
 
     case ASTNode::EXPR_CALL: {
         auto op = std::make_unique<Operation>(Operation::OP_CALL, "", node->loc);
@@ -146,14 +161,11 @@ OperationPtr CFGBuilder::convertExpr(const ASTNode* node) {
             bool hasRange = false;
             for (size_t i = 1; i < node->children.size(); ++i) {
                 if (node->children[i]->kind == ASTNode::EXPR_RANGE) {
-                    hasRange = true;
-                    break;
+                    hasRange = true; break;
                 }
             }
-
             auto op = std::make_unique<Operation>(
-                hasRange ? Operation::OP_SLICE : Operation::OP_INDEX,
-                "", node->loc);
+                hasRange ? Operation::OP_SLICE : Operation::OP_INDEX, "", node->loc);
             for (const auto& child : node->children) {
                 op->addOperand(convertExpr(child.get()));
             }
@@ -171,11 +183,89 @@ OperationPtr CFGBuilder::convertExpr(const ASTNode* node) {
         return op;
     }
 
-    default: {
+    default:
         addError("unexpected AST node kind in expression: " +
             std::string(ASTNode::kindName(node->kind)), node->loc);
         return std::make_unique<Operation>(Operation::OP_LITERAL, "<error>", node->loc);
     }
+}
+
+// ============================================================
+// ИСПРАВЛЕНИЕ: постобработка CFG для поддержки неявного возврата
+//
+// В языке варианта 4 последнее вычисленное выражение — это возвращаемое
+// значение функции.
+//
+// Проблема: в конструкции if/else результат вычисляется в then/else-блоках,
+// но они ведут не напрямую в exit, а через цепочку пустых merge-блоков:
+//   if_then -> if_merge -> (if_merge2 -> ...) -> exit
+//
+// Решение: строим множество блоков, "транзитивно достигающих exit" только
+// через цепочку пустых (без операций, без условий) блоков. Блоки с
+// последней вычислительной операцией, которые ведут в это множество,
+// получают OP_RETURN.
+// ============================================================
+static void applyImplicitReturn(ControlFlowGraph& cfg) {
+    int exitId = -1;
+    for (const auto& block : cfg.blocks) {
+        if (block->label == "exit") { exitId = block->id; break; }
+    }
+    if (exitId < 0) return;
+
+    int n = static_cast<int>(cfg.blocks.size());
+
+    // "passthrough[id] = true" означает: блок id пустой (нет операций, нет условия)
+    // и ведёт только в exit (напрямую или через другие passthrough-блоки).
+    // Иными словами, через него значение на стеке "протекает" в exit без изменений.
+    std::vector<bool> passthrough(n, false);
+    passthrough[exitId] = true;
+
+    // Итерируем до стабилизации (граф ациклический в merge-части)
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int i = 0; i < n; ++i) {
+            if (passthrough[i]) continue;
+            const auto& block = cfg.blocks[i];
+            // Блок passthrough если:
+            //   - нет операций
+            //   - нет условного перехода (только безусловный)
+            //   - безусловный переход ведёт в passthrough-блок
+            if (!block->operations.empty()) continue;
+            if (block->condition) continue;
+            if (block->conditionalTrue >= 0 || block->conditionalFalse >= 0) continue;
+            int next = block->unconditionalNext;
+            if (next >= 0 && next < n && passthrough[next]) {
+                passthrough[i] = true;
+                changed = true;
+            }
+        }
+    }
+
+    // Теперь: для каждого не-passthrough блока без условного перехода,
+    // который ведёт в passthrough-блок (т.е. его следующий — это passthrough),
+    // последняя вычислительная операция становится OP_RETURN.
+    for (auto& block : cfg.blocks) {
+        if (block->label == "exit") continue;
+        if (passthrough[block->id]) continue;
+
+        // Только блоки с безусловным переходом в passthrough
+        if (block->conditionalTrue >= 0 || block->conditionalFalse >= 0) continue;
+        int next = block->unconditionalNext;
+        if (next < 0 || next >= n || !passthrough[next]) continue;
+
+        if (block->operations.empty()) continue;
+
+        auto& lastOp = block->operations.back();
+        if (lastOp->kind == Operation::OP_RETURN) continue;
+        if (lastOp->kind == Operation::OP_ASSIGN) continue;
+
+        // Оборачиваем последнюю операцию в OP_RETURN
+        auto retOp = std::make_unique<Operation>(
+            Operation::OP_RETURN, "", lastOp->loc);
+        retOp->addOperand(std::move(lastOp));
+        block->operations.pop_back();
+        block->operations.push_back(std::move(retOp));
     }
 }
 
@@ -197,9 +287,7 @@ void CFGBuilder::buildFunctionCFG(FunctionInfo& func, const ASTNode* funcDef) {
     for (size_t i = 1; i < funcDef->children.size(); ++i) {
         const ASTNode* stmt = funcDef->children[i].get();
         currentBlockId = processStatement(stmt, cfg, currentBlockId, -1);
-        if (currentBlockId < 0) {
-            break;
-        }
+        if (currentBlockId < 0) break;
     }
 
     if (currentBlockId >= 0) {
@@ -210,6 +298,10 @@ void CFGBuilder::buildFunctionCFG(FunctionInfo& func, const ASTNode* funcDef) {
         }
     }
 
+    // ИСПРАВЛЕНИЕ: применяем правило неявного возврата
+    applyImplicitReturn(cfg);
+
+    // Собираем граф вызовов
     for (const auto& block : cfg.blocks) {
         for (const auto& op : block->operations) {
             collectCalls(op.get(), func.signature.name);
@@ -391,9 +483,7 @@ int CFGBuilder::processStatement(const ASTNode* stmt, ControlFlowGraph& cfg,
     case ASTNode::STMT_BLOCK: {
         int blockCurrent = currentBlockId;
         for (const auto& child : stmt->children) {
-            if (child->kind == ASTNode::FUNC_DEF) {
-                continue;
-            }
+            if (child->kind == ASTNode::FUNC_DEF) continue;
             blockCurrent = processStatement(child.get(), cfg,
                 blockCurrent, loopExitBlockId);
             if (blockCurrent < 0) break;
@@ -401,11 +491,10 @@ int CFGBuilder::processStatement(const ASTNode* stmt, ControlFlowGraph& cfg,
         return blockCurrent;
     }
 
-    default: {
+    default:
         addError("unexpected statement kind: " +
             std::string(ASTNode::kindName(stmt->kind)), stmt->loc);
         return currentBlockId;
-    }
     }
 }
 
