@@ -32,7 +32,7 @@ memory:
         granularity = 0;
     }
 
-    range data [0x00020000..0x0002FFFF] {
+    range databank [0x00020000..0x0002FFFF] {
         cell = 8;
         endianess = little-endian;
         granularity = 0;
@@ -240,8 +240,11 @@ instructions:
         if val == 0 then { ip = target; }
     };
 
+    /* ИСПРАВЛЕНО: сохраняем ip + 5, чтобы после ret вернуться на инструкцию
+       СЛЕДУЮЩУЮ за call, а не на саму call.
+       call = 1 байт опкод + 4 байта addr32 = 5 байт. */
     instruction call_op = { 01000011, addr32 as target } {
-        sp = sp + 4; stack[sp - 4] = ip;
+        sp = sp + 4; stack[sp - 4] = ip + 5;
         sp = sp + 4; stack[sp - 4] = fp;
         fp = sp;
         ip = target;
@@ -267,9 +270,11 @@ instructions:
         /* остановка */
     };
 
+    /* ИСПРАВЛЕНО: то же самое для call_indirect.
+       call_indirect = 1 байт опкод + 4 байта imm32 = 5 байт. */
     instruction call_indirect_op = { 01000110, imm32 as argcount } {
         let target = stack[sp - 8]; sp = sp - 9;
-        sp = sp + 4; stack[sp - 4] = ip;
+        sp = sp + 4; stack[sp - 4] = ip + 5;
         sp = sp + 4; stack[sp - 4] = fp;
         fp = sp;
         ip = target;

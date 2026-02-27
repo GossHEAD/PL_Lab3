@@ -40,9 +40,6 @@
     <None Include="test\test.asm">
       <Filter>Файлы ресурсов</Filter>
     </None>
-    <None Include="test\stackvm.arch">
-      <Filter>Файлы ресурсов</Filter>
-    </None>
     <None Include="test\calculator.asm">
       <Filter>Файлы ресурсов</Filter>
     </None>

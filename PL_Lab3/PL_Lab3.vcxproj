@@ -140,7 +140,6 @@
     <None Include="test\output.asm" />
     <None Include="test\runtime.asm" />
     <None Include="test\simplevm.arch" />
-    <None Include="test\stackvm.arch" />
     <None Include="test\test.asm" />
   </ItemGroup>
   <ItemGroup>
