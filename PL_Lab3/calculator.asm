@@ -1,171 +1,197 @@
 [section _code]
-; === entry point ===
 _start:
+    init_sp 0x30000
     call main
     hlt
 
-; --- external functions (implemented elsewhere) ---
-; extern in
-; extern out
-
-; === function readInt (args=0, locals=0) ===
 readInt:
-    enter 0 ; allocate 0 local slots
-    call in ; args=0
-    jmp readInt__exit_1 ; implicit return
-readInt__exit_1:
-    ret 0 ; return, clean 0 args
-
-; === function writeInt (args=1, locals=0) ===
-writeInt:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; n
-    call out ; args=1
-    jmp writeInt__exit_1 ; implicit return
-writeInt__exit_1:
-    ret 1 ; return, clean 1 args
-
-; === function fn_add (args=2, locals=0) ===
-fn_add:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; a
-    load_arg 1 ; b
-    add
-    jmp fn_add__exit_1 ; implicit return
-fn_add__exit_1:
-    ret 2 ; return, clean 2 args
-
-; === function fn_sub (args=2, locals=0) ===
-fn_sub:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; a
-    load_arg 1 ; b
-    sub
-    jmp fn_sub__exit_1 ; implicit return
-fn_sub__exit_1:
-    ret 2 ; return, clean 2 args
-
-; === function fn_mul (args=2, locals=0) ===
-fn_mul:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; a
-    load_arg 1 ; b
-    mul
-    jmp fn_mul__exit_1 ; implicit return
-fn_mul__exit_1:
-    ret 2 ; return, clean 2 args
-
-; === function fn_div (args=2, locals=0) ===
-fn_div:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; a
-    load_arg 1 ; b
-    div
-    jmp fn_div__exit_1 ; implicit return
-fn_div__exit_1:
-    ret 2 ; return, clean 2 args
-
-; === function fn_mod (args=2, locals=0) ===
-fn_mod:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; a
-    load_arg 1 ; b
-    mod
-    jmp fn_mod__exit_1 ; implicit return
-fn_mod__exit_1:
-    ret 2 ; return, clean 2 args
-
-; === function calc (args=3, locals=0) ===
-calc:
-    enter 0 ; allocate 0 local slots
-    load_arg 0 ; op
-    push_int 43
-    cmp_eq
-    jnz calc__if_then_2
-    jmp calc__if_else_4
-calc__if_then_2:
-    load_arg 1 ; a
-    load_arg 2 ; b
-    call fn_add ; args=2
-    jmp calc__exit_1 ; implicit return
-calc__if_else_4:
-    load_arg 0 ; op
-    push_int 45
-    cmp_eq
-    jnz calc__if_then_5
-    jmp calc__if_else_7
-calc__if_merge_3:
-    jmp calc__exit_1
-calc__if_then_5:
-    load_arg 1 ; a
-    load_arg 2 ; b
-    call fn_sub ; args=2
-    jmp calc__exit_1 ; implicit return
-calc__if_else_7:
-    load_arg 0 ; op
-    push_int 42
-    cmp_eq
-    jnz calc__if_then_8
-    jmp calc__if_else_10
-calc__if_merge_6:
-    jmp calc__if_merge_3
-calc__if_then_8:
-    load_arg 1 ; a
-    load_arg 2 ; b
-    call fn_mul ; args=2
-    jmp calc__exit_1 ; implicit return
-calc__if_else_10:
-    load_arg 0 ; op
-    push_int 47
-    cmp_eq
-    jnz calc__if_then_11
-    jmp calc__if_else_13
-calc__if_merge_9:
-    jmp calc__if_merge_6
-calc__if_then_11:
-    load_arg 1 ; a
-    load_arg 2 ; b
-    call fn_div ; args=2
-    jmp calc__exit_1 ; implicit return
-calc__if_else_13:
-    load_arg 0 ; op
-    push_int 37
-    cmp_eq
-    jnz calc__if_then_14
-    jmp calc__if_else_16
-calc__if_merge_12:
-    jmp calc__if_merge_9
-calc__if_then_14:
-    load_arg 1 ; a
-    load_arg 2 ; b
-    call fn_mod ; args=2
-    jmp calc__exit_1 ; implicit return
-calc__if_else_16:
+    enter 1
     push_int 0
-    jmp calc__exit_1 ; implicit return
-calc__if_merge_15:
-    jmp calc__if_merge_12
-calc__exit_1:
-    ret 3 ; return, clean 3 args
+    store_local 0
+readInt_loop:
+    io_read
+    dup
+    push_int 0
+    cmp_eq
+    jnz readInt_eof
+    dup
+    push_int 10
+    cmp_eq
+    jnz readInt_check_sep
+    dup
+    push_int 13
+    cmp_eq
+    jnz readInt_check_sep
+    dup
+    push_int 32
+    cmp_eq
+    jnz readInt_check_sep
+    push_int 48
+    sub
+    load_local 0
+    push_int 10
+    mul
+    add
+    store_local 0
+    jmp readInt_loop
+readInt_check_sep:
+    pop
+    load_local 0
+    push_int 0
+    cmp_eq
+    jnz readInt_loop
+    jmp readInt_ret
+readInt_eof:
+    pop
+readInt_ret:
+    load_local 0
+    ret 0
 
-; === function main (args=0, locals=4) ===
+writeInt:
+    enter 1
+    push_int 0
+    store_local 0
+    load_arg 0
+    push_int 0
+    cmp_eq
+    jnz writeInt_zero
+writeInt_push_loop:
+    load_arg 0
+    push_int 0
+    cmp_eq
+    jnz writeInt_pop_loop
+    load_arg 0
+    push_int 10
+    mod
+    push_int 48
+    add
+    load_local 0
+    inc
+    store_local 0
+    load_arg 0
+    push_int 10
+    div
+    store_arg 0
+    jmp writeInt_push_loop
+writeInt_pop_loop:
+    load_local 0
+    push_int 0
+    cmp_eq
+    jnz writeInt_end
+    lio 1
+    io_write
+    load_local 0
+    dec
+    store_local 0
+    jmp writeInt_pop_loop
+writeInt_zero:
+    push_int 48
+    lio 1
+    io_write
+writeInt_end:
+    push_none
+    ret 1
+
+fn_add:
+    enter 0
+    load_arg 0
+    load_arg 1
+    add
+    ret 2
+
+fn_sub:
+    enter 0
+    load_arg 0
+    load_arg 1
+    sub
+    ret 2
+
+fn_mul:
+    enter 0
+    load_arg 0
+    load_arg 1
+    mul
+    ret 2
+
+fn_div:
+    enter 0
+    load_arg 0
+    load_arg 1
+    div
+    ret 2
+
+fn_mod:
+    enter 0
+    load_arg 0
+    load_arg 1
+    mod
+    ret 2
+
+calc:
+    enter 0
+    load_arg 0
+    push_int 1
+    cmp_eq
+    jnz calc_add
+    load_arg 0
+    push_int 2
+    cmp_eq
+    jnz calc_sub
+    load_arg 0
+    push_int 3
+    cmp_eq
+    jnz calc_mul
+    load_arg 0
+    push_int 4
+    cmp_eq
+    jnz calc_div
+    load_arg 0
+    push_int 5
+    cmp_eq
+    jnz calc_mod
+    push_int 0
+    ret 3
+calc_add:
+    load_arg 2
+    load_arg 1
+    call fn_add
+    ret 3
+calc_sub:
+    load_arg 2
+    load_arg 1
+    call fn_sub
+    ret 3
+calc_mul:
+    load_arg 2
+    load_arg 1
+    call fn_mul
+    ret 3
+calc_div:
+    load_arg 2
+    load_arg 1
+    call fn_div
+    ret 3
+calc_mod:
+    load_arg 2
+    load_arg 1
+    call fn_mod
+    ret 3
+
 main:
-    enter 4 ; allocate 4 local slots
-    call readInt ; args=0
-    store_local 0 ; op
-    call readInt ; args=0
-    store_local 1 ; a
-    call readInt ; args=0
-    store_local 2 ; b
-    load_local 0 ; op
-    load_local 1 ; a
-    load_local 2 ; b
-    call calc ; args=3
-    store_local 3 ; result
-    load_local 3 ; result
-    call writeInt ; args=1
-    jmp main__exit_1 ; implicit return
-main__exit_1:
-    ret 0 ; return, clean 0 args
-
-; [section stack] — managed by VM at runtime
+    enter 4
+    call readInt
+    store_local 0
+    call readInt
+    store_local 1
+    call readInt
+    store_local 2
+    load_local 2
+    load_local 1
+    load_local 0
+    call calc
+    store_local 3
+    load_local 3
+    call writeInt
+    pop
+    push_none
+    ret 0
