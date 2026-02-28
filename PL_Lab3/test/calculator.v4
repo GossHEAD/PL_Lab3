@@ -1,48 +1,51 @@
-def in()
+def readInt() of int
 end
 
-def out(n)
+def writeInt(n of int)
 end
 
-def readInt()
-    in();
-end
-
-def writeInt(n)
-    out(n);
-end
-
-def fn_add(a, b)
+def fn_add(a of int, b of int) of int
     a + b;
 end
 
-def fn_sub(a, b)
+def fn_sub(a of int, b of int) of int
     a - b;
 end
 
-def fn_mul(a, b)
+def fn_mul(a of int, b of int) of int
     a * b;
 end
 
-def fn_div(a, b)
+def fn_div(a of int, b of int) of int
     a / b;
 end
 
-def fn_mod(a, b)
+def fn_mod(a of int, b of int) of int
     a % b;
 end
 
-def calc(op, a, b)
-    if op == 43 then
+def fn_fib(n of int) of int
+    if n == 0 then
+        0;
+    else if n == 1 then
+        1;
+    else
+        fn_fib(n - 1) + fn_fib(n - 2);
+end
+
+def calc(op of int, a of int, b of int) of int
+    if op == 1 then
         fn_add(a, b);
-    else if op == 45 then
+    else if op == 2 then
         fn_sub(a, b);
-    else if op == 42 then
+    else if op == 3 then
         fn_mul(a, b);
-    else if op == 47 then
+    else if op == 4 then
         fn_div(a, b);
-    else if op == 37 then
+    else if op == 5 then
         fn_mod(a, b);
+    else if op == 6 then
+        fn_fib(a);
     else
         0;
 end

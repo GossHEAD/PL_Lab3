@@ -11,7 +11,7 @@ const Token& Parser::current() const {
 
 const Token& Parser::peekToken() const {
     if (pos_ + 1 < tokens_.size()) return tokens_[pos_ + 1];
-    return tokens_.back(); // EOF
+    return tokens_.back();
 }
 
 const Token& Parser::advance() {
@@ -185,7 +185,6 @@ ASTNodePtr Parser::parseTypeRef() {
             return makeNode(ASTNode::TYPE_BUILTIN, loc, "<error>");
     }
 
-    // Check for 'array' '[' dec ']' suffix
     while (check(TokenType::TOK_ARRAY)) {
         advance();
         expect(TokenType::TOK_LBRACKET, "[");
@@ -321,7 +320,6 @@ ASTNodePtr Parser::parseBlock() {
     return node;
 }
 
-// expression statement, assignment, or repeat statement
 ASTNodePtr Parser::parseExpressionOrAssign() {
     auto loc = current().loc;
     auto expr = parseExpression();

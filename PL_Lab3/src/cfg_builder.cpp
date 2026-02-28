@@ -1,21 +1,3 @@
-// cfg_builder.cpp — ИСПРАВЛЕНО: поддержка неявного возврата (implicit return)
-//
-// В языке варианта 4 последнее выражение в функции является возвращаемым значением.
-// Пример:
-//   def fn_add(a, b)
-//     a + b;   <- неявный return: возвращает a+b
-//   end
-//
-//   def readInt()
-//     in();    <- возвращает результат вызова in()
-//   end
-//
-// Изменения:
-//   - buildFunctionCFG после построения CFG делает постобработку:
-//     для каждого блока, напрямую ведущего в exit, последняя операция
-//     (если это не OP_ASSIGN и не OP_RETURN) оборачивается в OP_RETURN.
-//   - Это позволяет codegen правильно оставить значение на стеке вместо pop.
-
 #include "../include/cfg_builder.h"
 
 void CFGBuilder::addError(const std::string& msg, SourceLocation loc) {
@@ -190,21 +172,6 @@ OperationPtr CFGBuilder::convertExpr(const ASTNode* node) {
     }
 }
 
-// ============================================================
-// ИСПРАВЛЕНИЕ: постобработка CFG для поддержки неявного возврата
-//
-// В языке варианта 4 последнее вычисленное выражение — это возвращаемое
-// значение функции.
-//
-// Проблема: в конструкции if/else результат вычисляется в then/else-блоках,
-// но они ведут не напрямую в exit, а через цепочку пустых merge-блоков:
-//   if_then -> if_merge -> (if_merge2 -> ...) -> exit
-//
-// Решение: строим множество блоков, "транзитивно достигающих exit" только
-// через цепочку пустых (без операций, без условий) блоков. Блоки с
-// последней вычислительной операцией, которые ведут в это множество,
-// получают OP_RETURN.
-// ============================================================
 static void applyImplicitReturn(ControlFlowGraph& cfg) {
     int exitId = -1;
     for (const auto& block : cfg.blocks) {
@@ -214,23 +181,15 @@ static void applyImplicitReturn(ControlFlowGraph& cfg) {
 
     int n = static_cast<int>(cfg.blocks.size());
 
-    // "passthrough[id] = true" означает: блок id пустой (нет операций, нет условия)
-    // и ведёт только в exit (напрямую или через другие passthrough-блоки).
-    // Иными словами, через него значение на стеке "протекает" в exit без изменений.
     std::vector<bool> passthrough(n, false);
     passthrough[exitId] = true;
 
-    // Итерируем до стабилизации (граф ациклический в merge-части)
     bool changed = true;
     while (changed) {
         changed = false;
         for (int i = 0; i < n; ++i) {
             if (passthrough[i]) continue;
             const auto& block = cfg.blocks[i];
-            // Блок passthrough если:
-            //   - нет операций
-            //   - нет условного перехода (только безусловный)
-            //   - безусловный переход ведёт в passthrough-блок
             if (!block->operations.empty()) continue;
             if (block->condition) continue;
             if (block->conditionalTrue >= 0 || block->conditionalFalse >= 0) continue;
@@ -241,15 +200,10 @@ static void applyImplicitReturn(ControlFlowGraph& cfg) {
             }
         }
     }
-
-    // Теперь: для каждого не-passthrough блока без условного перехода,
-    // который ведёт в passthrough-блок (т.е. его следующий — это passthrough),
-    // последняя вычислительная операция становится OP_RETURN.
     for (auto& block : cfg.blocks) {
         if (block->label == "exit") continue;
         if (passthrough[block->id]) continue;
 
-        // Только блоки с безусловным переходом в passthrough
         if (block->conditionalTrue >= 0 || block->conditionalFalse >= 0) continue;
         int next = block->unconditionalNext;
         if (next < 0 || next >= n || !passthrough[next]) continue;
@@ -260,7 +214,6 @@ static void applyImplicitReturn(ControlFlowGraph& cfg) {
         if (lastOp->kind == Operation::OP_RETURN) continue;
         if (lastOp->kind == Operation::OP_ASSIGN) continue;
 
-        // Оборачиваем последнюю операцию в OP_RETURN
         auto retOp = std::make_unique<Operation>(
             Operation::OP_RETURN, "", lastOp->loc);
         retOp->addOperand(std::move(lastOp));
@@ -298,10 +251,8 @@ void CFGBuilder::buildFunctionCFG(FunctionInfo& func, const ASTNode* funcDef) {
         }
     }
 
-    // ИСПРАВЛЕНИЕ: применяем правило неявного возврата
     applyImplicitReturn(cfg);
 
-    // Собираем граф вызовов
     for (const auto& block : cfg.blocks) {
         for (const auto& op : block->operations) {
             collectCalls(op.get(), func.signature.name);

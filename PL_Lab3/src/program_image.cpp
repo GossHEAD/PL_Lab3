@@ -60,6 +60,7 @@ std::string ProgramImage::toListing() const {
 
     out << "; === entry point ===\n";
     out << "_start:\n";
+    out << "    init_sp 0x30000\n";
     out << "    call main\n";
     out << "    hlt\n";
     out << "\n";

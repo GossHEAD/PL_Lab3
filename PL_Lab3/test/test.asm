@@ -1,8 +1,3 @@
-; ============================================================
-; Тестовый листинг для StackVM
-; Стековая ВМ, динамическая типизация, 4 банка памяти
-; ============================================================
-
 [section constants]
 _str_0:
     .string "Hello"     ; const #0
@@ -15,7 +10,6 @@ global_y: resb 9
 
 [section code]
 
-; === Тест 1: загрузка констант разных типов ===
 test_types:
     enter 0
     push_int 42         ; int
@@ -31,7 +25,6 @@ test_types:
     push_none
     ret
 
-; === Тест 2: арифметика (стековая) ===
 test_arith:
     enter 0
     push_int 10
@@ -49,7 +42,6 @@ test_arith:
     inc                 ; 0
     ret
 
-; === Тест 3: битовые и логические операции ===
 test_logic:
     enter 0
     push_int 255
@@ -70,7 +62,6 @@ test_logic:
     log_not             ; !true = false
     ret
 
-; === Тест 4: сравнения (результат — bool) ===
 test_compare:
     enter 0
     push_int 10
@@ -84,7 +75,6 @@ test_compare:
     cmp_gt              ; 10 > 5 = true
     ret
 
-; === Тест 5: локальные переменные и ветвление ===
 test_if:
     enter 2             ; 2 локальных слота
     push_int 10
@@ -105,7 +95,6 @@ test_if:
     load_local 1
     ret                 ; return local[1]
 
-; === Тест 6: цикл ===
 test_loop:
     enter 2
     push_int 0
@@ -129,7 +118,6 @@ test_loop:
     load_local 1        ; push sum
     ret                 ; return sum (= 0+1+2+3+4 = 10)
 
-; === Тест 7: вызов функции ===
 add_func:
     enter 0             ; no extra locals, 2 args
     load_arg 0          ; arg a
@@ -144,7 +132,6 @@ test_call:
     call add_func
     ret                 ; returns 10
 
-; === Тест 8: ввод-вывод ===
 test_io:
     enter 0
     lio 1               ; select port 1
@@ -154,7 +141,6 @@ test_io:
     io_read             ; read from port 0
     ret
 
-; === Точка входа ===
 main:
     enter 0
     push_int 100

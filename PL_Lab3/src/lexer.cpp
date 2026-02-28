@@ -168,7 +168,7 @@ Token Lexer::readIdentOrKeyword() {
 
 std::vector<Token> Lexer::tokenize() {
     std::vector<Token> tokens;
-    tokens.reserve(source_.size() / 4); // rough estimate
+    tokens.reserve(source_.size() / 4);
 
     for (;;) {
         skipWhitespaceAndComments();

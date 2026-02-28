@@ -133,6 +133,7 @@
     <None Include="Makefile" />
     <None Include="stackvm.arch" />
     <None Include="test\calculator.asm" />
+    <None Include="test\calculator.v4" />
     <None Include="test\example.v4" />
     <None Include="test\helpers.clamp.dot" />
     <None Include="test\helpers.min.dot" />

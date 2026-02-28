@@ -49,6 +49,9 @@
     <None Include="stackvm.arch">
       <Filter>Файлы ресурсов</Filter>
     </None>
+    <None Include="test\calculator.v4">
+      <Filter>Файлы ресурсов</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\cfg_builder.cpp">

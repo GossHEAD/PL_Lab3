@@ -191,7 +191,7 @@ void CFGDotExporter::exportCallGraph(const ProgramInfo& program, std::ostream& o
             if (allFunctions.find(callee) == allFunctions.end()) {
                 out << "  \"" << escape(callee)
                     << "\" [style=dashed, color=gray];\n";
-                allFunctions.insert(callee); // avoid duplicates
+                allFunctions.insert(callee);
             }
         }
     }
